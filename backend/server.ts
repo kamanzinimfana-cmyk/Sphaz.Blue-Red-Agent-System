@@ -53,14 +53,21 @@ async function startServer() {
     try {
       const { agent, messages, image, ollamaUrl, url, rotateProxy, aiMode, speedMode } = req.body;
 
+      if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ success: false, error: "Invalid messages format" });
+      }
+
       const task = messages?.[0]?.content || "";
       const dom = messages?.[1]?.content || "";
       const useCache = speedMode !== "accurate";
+
+      console.log(`🤖 Agent Request: ${agent} | Task: ${task.substring(0, 50)}...`);
 
       // 🤖 CAPTCHA Detection
       if (detectCaptcha(dom)) {
         console.log("🤖 CAPTCHA detected in DOM");
         return res.json({ 
+          success: true,
           output: JSON.stringify({ 
             needsCaptcha: true, 
             message: "CAPTCHA detected. Please solve or wait for auto-solver." 
@@ -73,6 +80,7 @@ async function startServer() {
         console.log("🚫 Block detected in DOM → Rotating Proxy");
         const nextProxy = proxyManager.getNextProxy();
         return res.json({ 
+          success: true,
           output: JSON.stringify({ useVision: true, rotatedProxy: nextProxy, message: "Blocked, rotating..." }) 
         });
       }
@@ -83,6 +91,7 @@ async function startServer() {
         if (learned) {
           console.log("🧠 Using learned behavior for:", url);
           return res.json({
+            success: true,
             output: JSON.stringify({ actions: learned.actionSequence, learned: true })
           });
         }
@@ -90,7 +99,7 @@ async function startServer() {
 
       if (image) {
         const result = await runVisionAgent(messages[0].content, image, aiMode);
-        return res.json({ output: JSON.stringify(result) });
+        return res.json({ success: true, output: JSON.stringify(result) });
       }
 
       let result;
@@ -108,12 +117,17 @@ async function startServer() {
 
       // Return exact format expected by extension
       res.json({
+        success: true,
         output: JSON.stringify(result)
       });
 
     } catch (error) {
-      console.error("🔥 ERROR:", error);
-      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+      console.error("🔥 BACKEND ERROR:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error),
+        tip: "Ensure your local Ollama server is running if using local models."
+      });
     }
   });
 

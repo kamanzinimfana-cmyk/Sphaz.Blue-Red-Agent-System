@@ -1,64 +1,113 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Blue Red Agent</title>
+  <meta charset="UTF-8">
+  <title>Agent OS Popup</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="app">
-    <div class="header">
-      <h2>🧠 Blue & Red Agent</h2>
-      <div id="status">Idle</div>
-    </div>
-
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="run">Run</button>
-      <button class="tab-btn" data-tab="settings">Settings</button>
-    </div>
-
-    <div id="run-tab" class="tab-content active">
-      <textarea id="task" placeholder="Enter your task (e.g. 'Complete the survey')"></textarea>
-      <div class="controls">
-        <button id="run">▶ Run</button>
-        <button id="stop">⏹ Stop</button>
+  <div class="app-container">
+    <header>
+      <div class="logo-section">
+        <div class="logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 12L2.1 12.1"/><path d="M12 12l9.9-0.1"/><path d="M12 12V22"/><path d="M12 12L2.1 11.9"/><path d="M12 12l9.9 0.1"/><circle cx="12" cy="12" r="1"/></svg>
+        </div>
+        <div class="logo-text">
+          <h1>Agent OS</h1>
+          <span class="version">v2.0.4</span>
+        </div>
       </div>
-      <div id="logs"></div>
-    </div>
+      <div class="status-indicator" id="status-badge">
+        <div class="dot"></div>
+        <span id="status-text">IDLE</span>
+      </div>
+    </header>
 
-    <div id="settings-tab" class="tab-content">
-      <label>AI Server URL</label>
-      <input id="server-url" value="http://localhost:3000" />
-      
-      <h4>Vision Mode</h4>
-      <label><input type="radio" name="vision-mode" value="on"> ON</label>
-      <label><input type="radio" name="vision-mode" value="off" checked> OFF</label>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="run">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        Run
+      </button>
+      <button class="tab-btn" data-tab="settings">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        Config
+      </button>
+    </nav>
 
-      <h4>Proxy Mode</h4>
-      <label><input type="radio" name="proxy-mode" value="off" checked> Off</label>
-      <label><input type="radio" name="proxy-mode" value="rotate"> Rotate per task</label>
-      <label><input type="radio" name="proxy-mode" value="sticky"> Sticky session</label>
+    <main>
+      <div id="run-tab" class="tab-content active">
+        <div class="input-group">
+          <textarea id="task-input" placeholder="What should the agent do?"></textarea>
+          <div class="action-bar">
+            <button id="run-btn" class="primary-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              Execute
+            </button>
+            <button id="stop-btn" class="secondary-btn" disabled>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12"></rect></svg>
+            </button>
+          </div>
+        </div>
 
-      <h4>AI Mode</h4>
-      <label><input type="radio" name="ai-mode" value="auto" checked> Auto (Failover)</label>
-      <label><input type="radio" name="ai-mode" value="mistral"> Mistral Only</label>
-      <label><input type="radio" name="ai-mode" value="ollama"> Ollama Only</label>
+        <div class="console-wrapper">
+          <div class="console-header">
+            <span>TERMINAL OUTPUT</span>
+            <button id="clear-logs">CLEAR</button>
+          </div>
+          <div id="logs" class="console-body">
+            <div class="empty-state">System ready...</div>
+          </div>
+        </div>
+      </div>
 
-      <h4>Speed Mode</h4>
-      <label><input type="radio" name="speed-mode" value="fast" checked> Fast (Cache)</label>
-      <label><input type="radio" name="speed-mode" value="accurate"> Accurate (No Cache)</label>
+      <div id="settings-tab" class="tab-content">
+        <div class="settings-list">
+          <div class="setting-item">
+            <label>AI Server URL</label>
+            <input type="text" id="server-url" value="http://localhost:3000">
+          </div>
+          
+          <div class="setting-item">
+            <label>Ollama URL</label>
+            <input type="text" id="ollama-url" value="http://localhost:11434">
+          </div>
 
-      <h4>Ultra Stealth</h4>
-      <label class="switch">
-        <input type="checkbox" id="stealth-mode" checked>
-        <span class="slider round"></span>
-      </label>
-      <span class="hint">Human-like timing & clicks</span>
+          <div class="setting-item row">
+            <div class="label-group">
+              <label>Stealth Mode</label>
+              <p>Simulate human behavior</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="stealth-mode" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
 
-      <h4>Ollama Config</h4>
-      <input type="text" id="ollama-url" placeholder="http://localhost:11434" value="http://localhost:11434" class="input-field">
+          <div class="setting-item row">
+            <div class="label-group">
+              <label>Auto-Solve CAPTCHA</label>
+              <p>Using vision fallback</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="auto-captcha" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+        
+        <button id="save-settings" class="save-btn">Save Configuration</button>
+      </div>
+    </main>
 
-      <p class="hint">Ensure backend is running on port 3000</p>
-    </div>
+    <footer>
+      <div class="footer-left">
+        <div class="pulse"></div>
+        CONNECTED
+      </div>
+      <div class="footer-right">
+        AGENT_OS_SECURE
+      </div>
+    </footer>
   </div>
   <script src="popup.js"></script>
 </body>

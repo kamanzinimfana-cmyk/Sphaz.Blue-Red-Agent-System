@@ -12,9 +12,15 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Terminal
+  Terminal,
+  Activity,
+  Shield,
+  Database,
+  Layout,
+  ChevronRight,
+  Trash2
 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './lib/utils';
 import { 
   AppSettings, 
@@ -32,7 +38,7 @@ export default function App() {
   
   // State
   const [isRunning, setIsRunning] = useState(false);
-  const [status, setStatus] = useState('Idle');
+  const [status, setStatus] = useState<'Idle' | 'Running' | 'Error' | 'Stopped'>('Idle');
   const [task, setTask] = useState('');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   
@@ -98,14 +104,28 @@ Income: $90k-$200k+`
             { role: 'user', content: task },
             { role: 'system', content: 'Current Page DOM Context' }
           ],
-          ollamaUrl: settings.ollamaUrl
+          ollamaUrl: settings.ollamaUrl,
+          aiMode: settings.aiMode,
+          speedMode: settings.speedMode
         })
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `Server responded with ${response.status}`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorMessage;
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
 
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.error);
+        throw new Error(data.error || "Unknown server error");
       }
 
       const result = JSON.parse(data.output);
@@ -129,8 +149,13 @@ Income: $90k-$200k+`
       addLog("✅ Task processed by backend.", "success");
       setStatus('Idle');
     } catch (error) {
-      addLog(`❌ Server Error: ${error instanceof Error ? error.message : String(error)}`, "error");
-      addLog("💡 Tip: Ensure your local Ollama server is running and accessible.", "system");
+      const msg = error instanceof Error ? error.message : String(error);
+      addLog(`❌ Server Error: ${msg}`, "error");
+      if (msg.includes("Unexpected end of JSON input")) {
+        addLog("💡 Tip: The server might have crashed or returned an empty response. Check backend logs.", "system");
+      } else {
+        addLog("💡 Tip: Ensure your local Ollama server is running and accessible if using local mode.", "system");
+      }
       setStatus('Error');
     } finally {
       setIsRunning(false);
@@ -144,328 +169,431 @@ Income: $90k-$200k+`
   };
 
   const saveSettings = () => {
-    addLog("Settings saved locally.", "system");
-    // In a real app, save to localStorage
+    addLog("Settings saved locally.", "success");
   };
 
   const saveProfile = () => {
-    addLog("Memory profile updated.", "system");
+    addLog("Memory profile updated.", "success");
   };
 
   return (
-    <div className="min-h-screen flex flex-col max-w-2xl mx-auto bg-[#0f172a] shadow-2xl border-x border-slate-800">
-      {/* HEADER */}
-      <header className="flex justify-between items-center p-4 border-b border-slate-800 bg-[#1e293b]/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-600 rounded-lg">
-            <Brain className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-[#020617] text-slate-200 font-sans selection:bg-indigo-500/30">
+      <div className="max-w-5xl mx-auto flex h-screen overflow-hidden">
+        
+        {/* SIDEBAR */}
+        <aside className="w-64 border-r border-slate-800/50 bg-slate-900/20 backdrop-blur-xl flex flex-col">
+          <div className="p-6 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <Brain className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-white tracking-tight">Agent OS</h1>
+              <p className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">v2.0.4 - STABLE</p>
+            </div>
           </div>
-          <h1 className="text-xl font-bold tracking-tight">Blue & Red Agent</h1>
-        </div>
-        <div className={cn(
-          "px-3 py-1 rounded-full text-xs font-medium flex items-center gap-2",
-          status === 'Idle' ? "bg-slate-800 text-slate-400" :
-          status === 'Running' ? "bg-blue-900/50 text-blue-400 animate-pulse" :
-          status === 'Error' ? "bg-red-900/50 text-red-400" :
-          "bg-yellow-900/50 text-yellow-400"
-        )}>
-          <div className={cn("w-2 h-2 rounded-full", 
-            status === 'Idle' ? "bg-slate-500" :
-            status === 'Running' ? "bg-blue-500" :
-            status === 'Error' ? "bg-red-500" :
-            "bg-yellow-500"
-          )} />
-          {status}
-        </div>
-      </header>
 
-      {/* TABS */}
-      <nav className="flex border-b border-slate-800 bg-[#1e293b]/30">
-        <button 
-          onClick={() => setActiveTab('run')}
-          className={cn(
-            "flex-1 py-3 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-2",
-            activeTab === 'run' ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"
-          )}
-        >
-          <Play className="w-4 h-4" /> Run
-        </button>
-        <button 
-          onClick={() => setActiveTab('settings')}
-          className={cn(
-            "flex-1 py-3 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-2",
-            activeTab === 'settings' ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"
-          )}
-        >
-          <Settings className="w-4 h-4" /> Settings
-        </button>
-        <button 
-          onClick={() => setActiveTab('memory')}
-          className={cn(
-            "flex-1 py-3 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-2",
-            activeTab === 'memory' ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"
-          )}
-        >
-          <History className="w-4 h-4" /> Memory
-        </button>
-      </nav>
-
-      {/* CONTENT */}
-      <main className="flex-1 overflow-hidden flex flex-col">
-        {activeTab === 'run' && (
-          <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Task Input</label>
-              <textarea 
-                value={task}
-                onChange={(e) => setTask(e.target.value)}
-                placeholder="Enter your task (e.g., 'Fill out the feedback survey on this page')"
-                className="w-full h-32 bg-slate-900 border border-slate-800 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all resize-none placeholder:text-slate-600"
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button 
-                onClick={handleRun}
-                disabled={isRunning}
-                className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
+          <nav className="flex-1 px-4 py-4 space-y-1">
+            {[
+              { id: 'run', icon: Activity, label: 'Control Center' },
+              { id: 'settings', icon: Settings, label: 'System Config' },
+              { id: 'memory', icon: Database, label: 'Neural Memory' },
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as any)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group",
+                  activeTab === item.id 
+                    ? "bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 shadow-[0_0_20px_rgba(79,70,229,0.1)]" 
+                    : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
+                )}
               >
-                {isRunning ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
-                Run Task
+                <item.icon className={cn("w-4 h-4 transition-transform group-hover:scale-110", activeTab === item.id ? "text-indigo-400" : "text-slate-500")} />
+                {item.label}
+                {activeTab === item.id && (
+                  <motion.div layoutId="active-pill" className="ml-auto w-1 h-4 bg-indigo-500 rounded-full" />
+                )}
               </button>
-              <button 
-                onClick={handleStop}
-                disabled={!isRunning}
-                className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2"
-              >
-                <Square className="w-5 h-5" />
-                Stop
+            ))}
+          </nav>
+
+          <div className="p-4 mt-auto">
+            <div className="bg-slate-900/50 border border-slate-800/50 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+                <span>System Status</span>
+                <span className={cn(
+                  "flex items-center gap-1.5",
+                  status === 'Running' ? "text-indigo-400" : "text-emerald-500"
+                )}>
+                  <div className={cn("w-1.5 h-1.5 rounded-full", status === 'Running' ? "bg-indigo-400 animate-pulse" : "bg-emerald-500")} />
+                  {status}
+                </span>
+              </div>
+              <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: isRunning ? '100%' : '0%' }}
+                  className="h-full bg-indigo-500"
+                />
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* MAIN CONTENT */}
+        <main className="flex-1 flex flex-col overflow-hidden bg-gradient-to-b from-slate-900/50 to-transparent">
+          
+          <header className="h-16 border-b border-slate-800/50 flex items-center justify-between px-8 bg-slate-900/20 backdrop-blur-md">
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <Layout className="w-4 h-4" />
+              <ChevronRight className="w-3 h-3 text-slate-600" />
+              <span className="capitalize text-slate-200 font-medium">{activeTab}</span>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <div className="flex -space-x-2">
+                <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-[10px] font-bold text-blue-400">B</div>
+                <div className="w-8 h-8 rounded-full bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-[10px] font-bold text-rose-400">R</div>
+              </div>
+              <div className="h-8 w-[1px] bg-slate-800" />
+              <button className="p-2 text-slate-500 hover:text-white transition-colors">
+                <Shield className="w-5 h-5" />
               </button>
             </div>
+          </header>
 
-            <div className="flex-1 flex flex-col min-h-0 bg-black rounded-xl border border-slate-800 overflow-hidden">
-              <div className="p-3 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-                  <Terminal className="w-3 h-3" />
-                  SYSTEM LOGS
-                </div>
-                <button 
-                  onClick={() => setLogs([])}
-                  className="text-[10px] text-slate-500 hover:text-white transition-colors"
+          <div className="flex-1 overflow-hidden relative">
+            <AnimatePresence mode="wait">
+              {activeTab === 'run' && (
+                <motion.div 
+                  key="run"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="h-full flex flex-col p-8 gap-6"
                 >
-                  CLEAR
-                </button>
-              </div>
-              <div id="logs" className="flex-1 overflow-y-auto p-4 font-mono text-sm space-y-2">
-                {logs.length === 0 && (
-                  <div className="h-full flex items-center justify-center text-slate-700 italic">
-                    Waiting for task...
-                  </div>
-                )}
-                {logs.map((log) => (
-                  <div key={log.id} className={cn(
-                    "flex gap-3 leading-relaxed",
-                    log.type === 'error' ? "text-red-400" :
-                    log.type === 'success' ? "text-emerald-400" :
-                    log.type === 'blue' ? "text-blue-400" :
-                    log.type === 'red' ? "text-rose-400" :
-                    "text-slate-300"
-                  )}>
-                    <span className="text-slate-600 shrink-0">[{log.timestamp.toLocaleTimeString([], { hour12: false })}]</span>
-                    <span>{log.message}</span>
-                  </div>
-                ))}
-                <div ref={logsEndRef} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'settings' && (
-          <div className="flex-1 overflow-y-auto p-6 space-y-8">
-            <section className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Cpu className="w-5 h-5 text-blue-500" />
-                AI Provider
-              </h3>
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs text-slate-500">Provider</label>
-                  <select 
-                    value={settings.provider}
-                    onChange={(e) => setSettings({...settings, provider: e.target.value as AIProvider})}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-600 outline-none"
-                  >
-                    <option value="gemini">Google Gemini (Cloud)</option>
-                    <option value="ollama">Ollama (Local)</option>
-                    <option value="mistral">Mistral (Cloud)</option>
-                  </select>
-                </div>
-
-                {settings.provider === 'ollama' && (
-                  <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-                    <div className="space-y-2">
-                      <label className="text-xs text-slate-500">Ollama URL</label>
-                      <input 
-                        type="text"
-                        value={settings.ollamaUrl}
-                        onChange={(e) => setSettings({...settings, ollamaUrl: e.target.value})}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-600 outline-none"
-                        placeholder="http://localhost:11434"
-                      />
+                  <div className="grid grid-cols-1 gap-6">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                          <Terminal className="w-3 h-3" />
+                          Command Input
+                        </label>
+                        <span className="text-[10px] text-slate-600">Markdown & URLs supported</span>
+                      </div>
+                      <div className="relative group">
+                        <textarea 
+                          value={task}
+                          onChange={(e) => setTask(e.target.value)}
+                          placeholder="Describe the task for the agents..."
+                          className="w-full h-32 bg-slate-900/50 border border-slate-800 rounded-2xl p-5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all resize-none placeholder:text-slate-600 shadow-inner"
+                        />
+                        <div className="absolute bottom-4 right-4 flex gap-2">
+                          <button 
+                            onClick={handleRun}
+                            disabled={isRunning}
+                            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold py-2 px-4 rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-indigo-900/40"
+                          >
+                            {isRunning ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                            Execute
+                          </button>
+                          <button 
+                            onClick={handleStop}
+                            disabled={!isRunning}
+                            className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-xs font-bold py-2 px-4 rounded-lg transition-all flex items-center gap-2"
+                          >
+                            <Square className="w-3 h-3" />
+                            Abort
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs text-slate-500">Model</label>
-                      <input 
-                        type="text"
-                        value={settings.ollamaModel}
-                        onChange={(e) => setSettings({...settings, ollamaModel: e.target.value})}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-600 outline-none"
-                        placeholder="mistral:instruct"
-                      />
+
+                    <div className="flex-1 flex flex-col min-h-0 bg-[#000]/40 backdrop-blur-sm rounded-2xl border border-slate-800/50 overflow-hidden shadow-2xl">
+                      <div className="px-5 py-3 border-b border-slate-800/50 bg-slate-900/40 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-rose-500/20 border border-rose-500/40" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/40" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/40" />
+                          </div>
+                          <div className="h-4 w-[1px] bg-slate-800 mx-1" />
+                          <div className="text-[10px] font-mono font-bold text-slate-500 tracking-widest uppercase">Console Output</div>
+                        </div>
+                        <button 
+                          onClick={() => setLogs([])}
+                          className="p-1.5 text-slate-600 hover:text-rose-400 transition-colors rounded-md hover:bg-rose-400/10"
+                          title="Clear Logs"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-6 font-mono text-[13px] space-y-3 custom-scrollbar">
+                        {logs.length === 0 && (
+                          <div className="h-full flex flex-col items-center justify-center text-slate-700 gap-4 opacity-50">
+                            <Terminal className="w-12 h-12 stroke-[1px]" />
+                            <p className="text-xs tracking-widest uppercase font-bold">System Idle - Awaiting Input</p>
+                          </div>
+                        )}
+                        {logs.map((log) => (
+                          <motion.div 
+                            initial={{ opacity: 0, x: -5 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            key={log.id} 
+                            className={cn(
+                              "flex gap-4 leading-relaxed group",
+                              log.type === 'error' ? "text-rose-400" :
+                              log.type === 'success' ? "text-emerald-400" :
+                              log.type === 'blue' ? "text-indigo-400" :
+                              log.type === 'red' ? "text-rose-500" :
+                              "text-slate-400"
+                            )}
+                          >
+                            <span className="text-slate-700 shrink-0 select-none opacity-50 group-hover:opacity-100 transition-opacity">
+                              {log.timestamp.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </span>
+                            <span className="flex-1">{log.message}</span>
+                          </motion.div>
+                        ))}
+                        <div ref={logsEndRef} />
+                      </div>
                     </div>
                   </div>
-                )}
+                </motion.div>
+              )}
 
-                {settings.provider === 'mistral' && (
-                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                    <label className="text-xs text-slate-500">API Key</label>
-                    <input 
-                      type="password"
-                      value={settings.apiKey}
-                      onChange={(e) => setSettings({...settings, apiKey: e.target.value})}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-600 outline-none"
-                      placeholder="Enter Mistral API Key"
+              {activeTab === 'settings' && (
+                <motion.div 
+                  key="settings"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="h-full overflow-y-auto p-8 space-y-10 custom-scrollbar"
+                >
+                  <section className="space-y-6">
+                    <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+                      <div className="p-2 bg-indigo-500/10 rounded-lg">
+                        <Cpu className="w-5 h-5 text-indigo-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-white">AI Infrastructure</h3>
+                        <p className="text-xs text-slate-500">Configure your neural processing units</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Primary Provider</label>
+                        <select 
+                          value={settings.provider}
+                          onChange={(e) => setSettings({...settings, provider: e.target.value as AIProvider})}
+                          className="w-full bg-slate-900/50 border border-slate-800 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all"
+                        >
+                          <option value="gemini">Google Gemini (Cloud)</option>
+                          <option value="ollama">Ollama (Local)</option>
+                          <option value="mistral">Mistral (Cloud)</option>
+                        </select>
+                      </div>
+
+                      {settings.provider === 'ollama' && (
+                        <>
+                          <div className="space-y-2 animate-in fade-in zoom-in-95 duration-300">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Ollama Endpoint</label>
+                            <input 
+                              type="text"
+                              value={settings.ollamaUrl}
+                              onChange={(e) => setSettings({...settings, ollamaUrl: e.target.value})}
+                              className="w-full bg-slate-900/50 border border-slate-800 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all"
+                              placeholder="http://localhost:11434"
+                            />
+                          </div>
+                          <div className="space-y-2 animate-in fade-in zoom-in-95 duration-300">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Model Tag</label>
+                            <input 
+                              type="text"
+                              value={settings.ollamaModel}
+                              onChange={(e) => setSettings({...settings, ollamaModel: e.target.value})}
+                              className="w-full bg-slate-900/50 border border-slate-800 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all"
+                              placeholder="mistral:instruct"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {settings.provider === 'mistral' && (
+                        <div className="space-y-2 animate-in fade-in zoom-in-95 duration-300 md:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mistral API Key</label>
+                          <input 
+                            type="password"
+                            value={settings.apiKey}
+                            onChange={(e) => setSettings({...settings, apiKey: e.target.value})}
+                            className="w-full bg-slate-900/50 border border-slate-800 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all"
+                            placeholder="••••••••••••••••••••••••"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="space-y-6">
+                    <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+                      <div className="p-2 bg-amber-500/10 rounded-lg">
+                        <Zap className="w-5 h-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-white">Operational Tuning</h3>
+                        <p className="text-xs text-slate-500">Fine-tune agent behavior and performance</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-8">
+                      <div className="space-y-4">
+                        <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">AI Logic Mode</h4>
+                        <div className="flex p-1 bg-slate-900 rounded-2xl border border-slate-800">
+                          {(['hybrid', 'ollama', 'mistral'] as AIMode[]).map((mode) => (
+                            <button
+                              key={mode}
+                              onClick={() => setSettings({...settings, aiMode: mode})}
+                              className={cn(
+                                "flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all capitalize",
+                                settings.aiMode === mode 
+                                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-900/40" 
+                                  : "text-slate-500 hover:text-slate-300"
+                              )}
+                            >
+                              {mode}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                          <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Optimization Strategy</h4>
+                          <div className="grid grid-cols-3 gap-2">
+                            {(['fast', 'balanced', 'accurate'] as SpeedMode[]).map((mode) => (
+                              <button
+                                key={mode}
+                                onClick={() => setSettings({...settings, speedMode: mode})}
+                                className={cn(
+                                  "py-3 px-2 rounded-xl text-[10px] font-bold border transition-all capitalize tracking-wider",
+                                  settings.speedMode === mode 
+                                    ? "bg-indigo-600 border-indigo-500 text-white" 
+                                    : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
+                                )}
+                              >
+                                {mode}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Vision Fallback</h4>
+                          <div className="grid grid-cols-2 gap-2">
+                            {(['on', 'off'] as VisionMode[]).map((mode) => (
+                              <button
+                                key={mode}
+                                onClick={() => setSettings({...settings, visionMode: mode})}
+                                className={cn(
+                                  "py-3 px-2 rounded-xl text-[10px] font-bold border transition-all uppercase tracking-wider",
+                                  settings.visionMode === mode 
+                                    ? "bg-indigo-600 border-indigo-500 text-white" 
+                                    : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
+                                )}
+                              >
+                                {mode}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <div className="pt-4">
+                    <button 
+                      onClick={saveSettings}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-900/30 group"
+                    >
+                      <Save className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                      Commit Configuration
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'memory' && (
+                <motion.div 
+                  key="memory"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="h-full flex flex-col p-8 gap-8"
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-emerald-500/10 rounded-lg">
+                          <Database className="w-5 h-5 text-emerald-400" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-white">Neural Memory Profile</h3>
+                          <p className="text-xs text-slate-500">Persistent context for automated interactions</p>
+                        </div>
+                      </div>
+                      <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400 tracking-widest uppercase">
+                        Active Profile
+                      </div>
+                    </div>
+                    <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl">
+                      <p className="text-xs text-slate-400 leading-relaxed flex items-start gap-3">
+                        <Shield className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                        This profile is used by the <span className="text-rose-400 font-bold">Red Agent</span> to automatically fill forms and surveys. Ensure the data is accurate for consistent behavior.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 relative group">
+                    <textarea 
+                      value={profile}
+                      onChange={(e) => setProfile(e.target.value)}
+                      className="w-full h-full bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all resize-none leading-loose custom-scrollbar shadow-inner"
                     />
+                    <div className="absolute top-4 right-4 text-[10px] font-mono text-slate-700 pointer-events-none">
+                      EDITABLE_BUFFER
+                    </div>
                   </div>
-                )}
-              </div>
-            </section>
 
-            <section className="space-y-6">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Zap className="w-5 h-5 text-yellow-500" />
-                Execution Mode
-              </h3>
-              
-              <div className="space-y-4">
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-slate-400 uppercase tracking-widest text-[10px]">AI Mode</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['hybrid', 'ollama', 'mistral'] as AIMode[]).map((mode) => (
-                      <button
-                        key={mode}
-                        onClick={() => setSettings({...settings, aiMode: mode})}
-                        className={cn(
-                          "py-2 px-3 rounded-lg text-xs font-medium border transition-all capitalize",
-                          settings.aiMode === mode 
-                            ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/20" 
-                            : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700"
-                        )}
-                      >
-                        {mode}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-slate-400 uppercase tracking-widest text-[10px]">Speed</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['fast', 'balanced', 'accurate'] as SpeedMode[]).map((mode) => (
-                      <button
-                        key={mode}
-                        onClick={() => setSettings({...settings, speedMode: mode})}
-                        className={cn(
-                          "py-2 px-3 rounded-lg text-xs font-medium border transition-all capitalize",
-                          settings.speedMode === mode 
-                            ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/20" 
-                            : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700"
-                        )}
-                      >
-                        {mode}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-slate-400 uppercase tracking-widest text-[10px]">Vision</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(['on', 'off'] as VisionMode[]).map((mode) => (
-                      <button
-                        key={mode}
-                        onClick={() => setSettings({...settings, visionMode: mode})}
-                        className={cn(
-                          "py-2 px-3 rounded-lg text-xs font-medium border transition-all uppercase",
-                          settings.visionMode === mode 
-                            ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/20" 
-                            : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700"
-                        )}
-                      >
-                        {mode}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <button 
-              onClick={saveSettings}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
-            >
-              <Save className="w-5 h-5" />
-              Save Settings
-            </button>
+                  <button 
+                    onClick={saveProfile}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-5 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-xl shadow-emerald-900/30 group"
+                  >
+                    <Save className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    Sync Neural Memory
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        )}
+        </main>
+      </div>
 
-        {activeTab === 'memory' && (
-          <div className="flex-1 flex flex-col p-6 gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <History className="w-5 h-5 text-emerald-500" />
-                  Memory Profile
-                </h3>
-                <div className="text-[10px] text-slate-500 bg-slate-900 px-2 py-1 rounded border border-slate-800">
-                  PERSISTENT CONTEXT
-                </div>
-              </div>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                This profile is used by the <span className="text-rose-400 font-semibold">Red Agent</span> to automatically fill forms and surveys with your personal details.
-              </p>
-            </div>
-
-            <textarea 
-              value={profile}
-              onChange={(e) => setProfile(e.target.value)}
-              className="flex-1 bg-slate-900 border border-slate-800 rounded-xl p-6 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all resize-none leading-loose"
-            />
-
-            <button 
-              onClick={saveProfile}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20"
-            >
-              <Save className="w-5 h-5" />
-              Save Profile
-            </button>
-          </div>
-        )}
-      </main>
-
-      {/* FOOTER */}
-      <footer className="p-3 border-t border-slate-800 bg-[#1e293b]/50 text-[10px] text-slate-500 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-          SYSTEM READY
-        </div>
-        <div className="flex gap-4">
-          <span>BLUE: {settings.blueAgentId}</span>
-          <span>RED: {settings.redAgentId}</span>
-        </div>
-      </footer>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #1e293b;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #334155;
+        }
+      `}} />
     </div>
   );
 }
