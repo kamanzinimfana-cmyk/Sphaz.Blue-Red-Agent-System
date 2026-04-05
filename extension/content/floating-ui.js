@@ -1,4 +1,5 @@
 (function () {
+  console.log("✅ Floating UI script loaded");
   window.onerror = function (msg, url, line) {
     console.error("🔥 UI ERROR:", msg, "at", line);
   };

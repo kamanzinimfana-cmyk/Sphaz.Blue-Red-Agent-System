@@ -1,8 +1,5 @@
 import express from "express";
 import cors from "cors";
-import { createServer as createViteServer } from "vite";
-import path from "path";
-import { fileURLToPath } from "url";
 import { selectModel, runRedAgent, runBlueAgent, runVisionAgent } from "./src/ai/agents.ts";
 import { injectProfile } from "./src/memory.ts";
 import { LearningEngine } from "./src/learningEngine.ts";
@@ -12,9 +9,6 @@ import { isBlocked } from "./src/security/blockDetector.ts";
 import { detectCaptcha } from "./src/security/captchaDetector.ts";
 import { solveRecaptcha, getAllBalances } from "./src/security/captchaSolver.ts";
 import fetch from "node-fetch";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const learningEngine = new LearningEngine();
 const proxyManager = new ProxyManager();
@@ -170,22 +164,6 @@ async function startServer() {
   app.get("/api/profile", (req, res) => {
     res.json({ success: true, profile: injectProfile("") });
   });
-
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-      cacheDir: ".vite_cache"
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
