@@ -1,4 +1,8 @@
 (function () {
+  window.onerror = function (msg, url, line) {
+    console.error("🔥 UI ERROR:", msg, "at", line);
+  };
+
   if (document.getElementById("ai-agent-ui")) return;
 
   const ui = document.createElement("div");
@@ -135,27 +139,26 @@
     "serverUrl", "aiMode", "mistralApiKey", "ollamaUrl", "ollamaModel", 
     "stealthEnabled", "autoCaptcha", "visionMode", "useMemory", "useProfile", "userProfileData"
   ], (settings) => {
-    if (settings.serverUrl) document.getElementById("ai-agent-server-url").value = settings.serverUrl;
-    if (settings.mistralApiKey) document.getElementById("ai-agent-mistral-key").value = settings.mistralApiKey;
-    if (settings.ollamaUrl) document.getElementById("ai-agent-ollama-url").value = settings.ollamaUrl;
+    if (settings.serverUrl) serverUrlInput.value = settings.serverUrl;
+    if (settings.mistralApiKey) mistralKeyInput.value = settings.mistralApiKey;
+    if (settings.ollamaUrl) ollamaUrlInput.value = settings.ollamaUrl;
     
     if (settings.aiMode) {
-      const modelSelect = document.getElementById("ai-agent-model");
       if (settings.aiMode === "mistral") modelSelect.value = "cloud";
       else modelSelect.value = settings.ollamaModel || "mistral:instruct";
     }
     
     if (settings.stealthEnabled !== undefined) document.getElementById("ai-agent-stealth").checked = settings.stealthEnabled;
     if (settings.autoCaptcha !== undefined) document.getElementById("ai-agent-auto-captcha").checked = settings.autoCaptcha;
-    if (settings.visionMode) document.getElementById("ai-agent-vision").checked = settings.visionMode === "on";
-    if (settings.useMemory !== undefined) document.getElementById("ai-agent-memory").checked = settings.useMemory;
-    if (settings.useProfile !== undefined) document.getElementById("ai-agent-profile-toggle").checked = settings.useProfile;
+    if (settings.visionMode) visionCheck.checked = settings.visionMode === "on";
+    if (settings.useMemory !== undefined) memoryCheck.checked = settings.useMemory;
+    if (settings.useProfile !== undefined) profileToggle.checked = settings.useProfile;
     
     if (settings.userProfileData) {
-      document.getElementById("ai-agent-profile-data").value = settings.userProfileData;
+      profileDataInput.value = settings.userProfileData;
     } else {
       // Default profile if empty
-      document.getElementById("ai-agent-profile-data").value = "Age: 39\nGender: Male\nLocation: South Africa\nJob: Cyber Security Analyst";
+      profileDataInput.value = "Age: 39\nGender: Male\nLocation: South Africa\nJob: Cyber Security Analyst";
     }
   });
 
@@ -227,6 +230,18 @@
   const taskInput = document.getElementById("ai-agent-task");
   const logsPanel = document.getElementById("ai-agent-logs");
   const statusIndicator = document.getElementById("ai-agent-status");
+  
+  const modelSelect = document.getElementById("ai-agent-model");
+  const modeSelect = document.getElementById("ai-agent-mode");
+  const visionCheck = document.getElementById("ai-agent-vision");
+  const autopilotCheck = document.getElementById("ai-agent-autopilot");
+  const memoryCheck = document.getElementById("ai-agent-memory");
+  const profileToggle = document.getElementById("ai-agent-profile-toggle");
+  
+  const serverUrlInput = document.getElementById("ai-agent-server-url");
+  const mistralKeyInput = document.getElementById("ai-agent-mistral-key");
+  const ollamaUrlInput = document.getElementById("ai-agent-ollama-url");
+  const profileDataInput = document.getElementById("ai-agent-profile-data");
 
   function addLog(msg, type = 'info') {
     const log = document.createElement("div");
@@ -236,28 +251,36 @@
   }
 
   runBtn.onclick = () => {
-    const task = taskInput.value;
+    const task = taskInput.value.trim();
     if (!task) return addLog("Please enter a task", "error");
+
+    const model = modelSelect?.value;
+    const mode = modeSelect?.value;
+    const vision = visionCheck?.checked;
+    const autopilot = autopilotCheck?.checked;
+    const useMemory = memoryCheck?.checked;
+    const useProfile = profileToggle?.checked;
 
     statusIndicator.textContent = "Running...";
     statusIndicator.className = "ai-agent-status-active";
-    addLog(`🚀 Starting task: ${task}`);
+    logsPanel.innerHTML = "";
+    addLog(`🚀 Starting task: ${task}`, "system");
 
     chrome.storage.local.set({
-      useMemory: document.getElementById("ai-agent-memory").checked,
-      useProfile: document.getElementById("ai-agent-profile-toggle").checked,
-      visionMode: document.getElementById("ai-agent-vision").checked ? "on" : "off"
+      useMemory,
+      useProfile,
+      visionMode: vision ? "on" : "off"
     });
 
     chrome.runtime.sendMessage({
       type: "START_TASK",
       task,
-      model: document.getElementById("ai-agent-model").value,
-      mode: document.getElementById("ai-agent-mode").value,
-      vision: document.getElementById("ai-agent-vision").checked,
-      autopilot: document.getElementById("ai-agent-autopilot").checked,
-      useMemory: document.getElementById("ai-agent-memory").checked,
-      useProfile: document.getElementById("ai-agent-profile-toggle").checked,
+      model,
+      mode,
+      vision,
+      autopilot,
+      useMemory,
+      useProfile,
       dom: document.documentElement.outerHTML,
       url: window.location.href
     });
@@ -286,6 +309,9 @@
       statusIndicator.textContent = "Complete";
       statusIndicator.className = "ai-agent-status-success";
       addLog("✅ Task complete", "success");
+    }
+    if (msg.type === "TOGGLE_UI") {
+      ui.style.display = ui.style.display === "none" ? "block" : "none";
     }
   });
 

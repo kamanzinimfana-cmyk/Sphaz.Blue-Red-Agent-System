@@ -10,6 +10,9 @@
   "background": {
     "service_worker": "background.js"
   },
+  "action": {
+    "default_title": "AI Agent"
+  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],

@@ -1,5 +1,5 @@
 {
-  "name": "Remix: Blue \u0026 Red Agent System",
-  "description": "A dual-agent AI system for navigation (Blue) and execution (Red) with hybrid local/cloud switching.",
+  "name": "AI Agent OS",
+  "description": "A single-interface Chrome extension AI agent with floating UI, visual detection, and neural memory.",
   "requestFramePermissions": []
 }

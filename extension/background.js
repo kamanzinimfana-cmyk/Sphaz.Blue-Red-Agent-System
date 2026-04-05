@@ -1,5 +1,11 @@
 let isRunning = false;
 
+chrome.action.onClicked.addListener((tab) => {
+  if (tab && tab.id) {
+    chrome.tabs.sendMessage(tab.id, { type: "TOGGLE_UI" }).catch(() => {});
+  }
+});
+
 chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
 
   if (msg.type === "START_TASK") {
