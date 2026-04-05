@@ -1,20 +1,20 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Blue & Red Agent System
 
-# Run and deploy your AI Studio app
+A dual-agent AI system for navigation (Blue) and execution (Red) with hybrid local/cloud switching.
 
-This contains everything you need to run your app locally.
+## Project Structure
 
-View your app in AI Studio: https://ai.studio/apps/bc030f10-328c-46c5-a9c0-f1f5e89aaf17
+- `extension/`: Chrome extension for the user interface.
+- `backend/`: Node.js backend server.
+  - `server.ts`: Main entry point.
+  - `src/ai/`: AI agent logic and failover systems.
+  - `src/cache/`: Smart caching and embeddings.
+  - `src/brain/`: User profile and memory management.
+  - `src/security/`: Captcha solving and stealth engines.
+- `src/`: Frontend React application.
 
-## Run Locally
+## Setup
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+1. Install dependencies: `npm install`
+2. Start the development server: `npm run dev`
+3. Configure your API keys in the `.env` file.

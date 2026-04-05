@@ -3,14 +3,14 @@ import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import { selectModel, runRedAgent, runBlueAgent, runVisionAgent } from "./src/lib/agents.ts";
-import { injectProfile } from "./src/lib/memory.ts";
-import { LearningEngine } from "./src/lib/learningEngine.ts";
-import { ProxyManager } from "./src/lib/proxyManager.ts";
-import { isBlocked } from "./src/lib/blockDetector.ts";
+import { selectModel, runRedAgent, runBlueAgent, runVisionAgent } from "./src/ai/agents.ts";
+import { injectProfile } from "./src/memory.ts";
+import { LearningEngine } from "./src/learningEngine.ts";
+import { ProxyManager } from "./src/proxyManager.ts";
+import { isBlocked } from "./src/security/blockDetector.ts";
 
-import { detectCaptcha } from "./src/lib/captchaDetector.ts";
-import { solveRecaptcha, getAllBalances } from "./src/lib/captchaSolver.ts";
+import { detectCaptcha } from "./src/security/captchaDetector.ts";
+import { solveRecaptcha, getAllBalances } from "./src/security/captchaSolver.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -1,6 +1,6 @@
-import { getSmartCache, setSmartCache, shouldCache } from "./cache.ts";
-import { buildProfileContext } from "./brain/profilePrompt.ts";
-import { getDirectAnswer } from "./brain/answerOverrides.ts";
+import { getSmartCache, setSmartCache, shouldCache } from "../cache/cache.ts";
+import { buildProfileContext } from "../brain/profilePrompt.ts";
+import { getDirectAnswer } from "../brain/answerOverrides.ts";
 
 const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";

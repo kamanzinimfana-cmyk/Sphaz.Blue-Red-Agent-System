@@ -1,5 +1,5 @@
-import { USER_PROFILE } from "./userProfile.ts";
-import { enhanceSurveyPrompt } from "./surveyEngine.ts";
+import { USER_PROFILE } from "../userProfile.ts";
+import { enhanceSurveyPrompt } from "../surveyEngine.ts";
 import { processScreenshot } from "./visionProcessor.ts";
 
 import { callAI } from "./failover.ts";
