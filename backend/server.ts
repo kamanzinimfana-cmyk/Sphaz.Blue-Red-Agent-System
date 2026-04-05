@@ -51,7 +51,7 @@ async function startServer() {
 
   app.post("/agent", async (req, res) => {
     try {
-      const { agent, messages, image, ollamaUrl, url, rotateProxy, aiMode, speedMode } = req.body;
+      const { agent, messages, image, ollamaUrl, ollamaModel, mistralApiKey, url, rotateProxy, aiMode, speedMode } = req.body;
 
       if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ success: false, error: "Invalid messages format" });
@@ -61,7 +61,7 @@ async function startServer() {
       const dom = messages?.[1]?.content || "";
       const useCache = speedMode !== "accurate";
 
-      console.log(`🤖 Agent Request: ${agent} | Task: ${task.substring(0, 50)}...`);
+      console.log(`🤖 Agent Request: ${agent} | Mode: ${aiMode} | Model: ${ollamaModel || 'default'}`);
 
       // 🤖 CAPTCHA Detection
       if (detectCaptcha(dom)) {
@@ -98,21 +98,21 @@ async function startServer() {
       }
 
       if (image) {
-        const result = await runVisionAgent(messages[0].content, image, aiMode);
+        const result = await runVisionAgent(messages[0].content, image, aiMode, mistralApiKey);
         return res.json({ success: true, output: JSON.stringify(result) });
       }
 
       let result;
 
       if (agent === "red") {
-        result = await runRedAgent(task, dom, ollamaUrl, undefined, aiMode, useCache);
+        result = await runRedAgent(task, dom, ollamaUrl, undefined, aiMode, useCache, mistralApiKey, ollamaModel);
         
         // 🧠 Store successful actions if they exist
         if (url && result.actions && result.actions.length > 0) {
           learningEngine.store(url, result.actions, true);
         }
       } else {
-        result = await runBlueAgent(task, dom, ollamaUrl, aiMode, useCache);
+        result = await runBlueAgent(task, dom, ollamaUrl, aiMode, useCache, mistralApiKey, ollamaModel);
       }
 
       // Return exact format expected by extension
@@ -126,7 +126,7 @@ async function startServer() {
       res.status(500).json({ 
         success: false, 
         error: error instanceof Error ? error.message : String(error),
-        tip: "Ensure your local Ollama server is running if using local models."
+        tip: "Ensure your local Ollama server is running if using local models, or check your Mistral API key."
       });
     }
   });

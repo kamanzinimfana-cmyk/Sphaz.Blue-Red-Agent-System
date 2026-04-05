@@ -52,7 +52,10 @@ runBtn.onclick = () => {
 
   const settings = {
     serverUrl: document.getElementById('server-url').value,
+    aiMode: document.getElementById('ai-mode').value,
+    mistralApiKey: document.getElementById('mistral-api-key').value,
     ollamaUrl: document.getElementById('ollama-url').value,
+    ollamaModel: document.getElementById('ollama-model').value,
     stealthEnabled: document.getElementById('stealth-mode').checked,
     autoCaptcha: document.getElementById('auto-captcha').checked
   };
@@ -89,7 +92,10 @@ stopBtn.onclick = () => {
 saveSettingsBtn.onclick = () => {
   const settings = {
     serverUrl: document.getElementById('server-url').value,
+    aiMode: document.getElementById('ai-mode').value,
+    mistralApiKey: document.getElementById('mistral-api-key').value,
     ollamaUrl: document.getElementById('ollama-url').value,
+    ollamaModel: document.getElementById('ollama-model').value,
     stealthEnabled: document.getElementById('stealth-mode').checked,
     autoCaptcha: document.getElementById('auto-captcha').checked
   };
@@ -99,12 +105,25 @@ saveSettingsBtn.onclick = () => {
   });
 };
 
+// Dynamic UI visibility
+document.getElementById('ai-mode').onchange = (e) => {
+  const mode = e.target.value;
+  document.getElementById('mistral-config').style.display = (mode === 'mistral' || mode === 'auto') ? 'block' : 'none';
+  document.getElementById('ollama-config').style.display = (mode === 'ollama' || mode === 'auto') ? 'block' : 'none';
+};
+
 // Load saved settings
 chrome.storage.local.get(['settings'], (result) => {
   if (result.settings) {
     document.getElementById('server-url').value = result.settings.serverUrl || "http://localhost:3000";
+    document.getElementById('ai-mode').value = result.settings.aiMode || "auto";
+    document.getElementById('mistral-api-key').value = result.settings.mistralApiKey || "";
     document.getElementById('ollama-url').value = result.settings.ollamaUrl || "http://localhost:11434";
+    document.getElementById('ollama-model').value = result.settings.ollamaModel || "mistral:instruct";
     document.getElementById('stealth-mode').checked = result.settings.stealthEnabled !== false;
     document.getElementById('auto-captcha').checked = result.settings.autoCaptcha !== false;
+    
+    // Trigger visibility update
+    document.getElementById('ai-mode').onchange({ target: { value: document.getElementById('ai-mode').value } });
   }
 });

@@ -18,7 +18,7 @@ export function selectModel(task: string) {
 }
 
 // 🔴 RED AGENT (ACTIONS)
-export async function runRedAgent(task: string, dom: string, ollamaUrl?: string, imageBase64?: string, mode: "auto" | "mistral" | "ollama" = "auto", useCache: boolean = true) {
+export async function runRedAgent(task: string, dom: string, ollamaUrl?: string, imageBase64?: string, mode: "auto" | "mistral" | "ollama" = "auto", useCache: boolean = true, mistralApiKey?: string, ollamaModel?: string) {
   const trimmedDOM = dom.substring(0, 2000); // Token trimming for speed
   
   if (trimmedDOM.length < 50 && !imageBase64) {
@@ -53,6 +53,8 @@ export async function runRedAgent(task: string, dom: string, ollamaUrl?: string,
     mode,
     useCache,
     ollamaUrl,
+    ollamaModel,
+    mistralApiKey,
     task
   });
 
@@ -64,7 +66,7 @@ export async function runRedAgent(task: string, dom: string, ollamaUrl?: string,
 }
 
 // 👁️ VISION AGENT (FALLBACK)
-export async function runVisionAgent(task: string, imageBase64: string, mode: "auto" | "mistral" | "ollama" = "auto") {
+export async function runVisionAgent(task: string, imageBase64: string, mode: "auto" | "mistral" | "ollama" = "auto", mistralApiKey?: string) {
   console.log("Vision Agent processing task:", task);
   
   const buffer = Buffer.from(imageBase64.split(",")[1] || imageBase64, 'base64');
@@ -81,7 +83,7 @@ export async function runVisionAgent(task: string, imageBase64: string, mode: "a
 }
 
 // 🔵 BLUE AGENT (NAVIGATION)
-export async function runBlueAgent(task: string, dom: string, ollamaUrl?: string, mode: "auto" | "mistral" | "ollama" = "auto", useCache: boolean = true) {
+export async function runBlueAgent(task: string, dom: string, ollamaUrl?: string, mode: "auto" | "mistral" | "ollama" = "auto", useCache: boolean = true, mistralApiKey?: string, ollamaModel?: string) {
   const trimmedDOM = dom.substring(0, 2000);
   const taskType = detectTaskType(task);
 
@@ -114,6 +116,8 @@ ${task}
     mode,
     useCache,
     ollamaUrl,
+    ollamaModel,
+    mistralApiKey,
     task
   });
 

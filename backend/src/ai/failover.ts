@@ -16,19 +16,22 @@ interface CallAIParams {
   mode?: "auto" | "mistral" | "ollama";
   useCache?: boolean;
   ollamaUrl?: string;
+  ollamaModel?: string;
+  mistralApiKey?: string;
   task: string;
 }
 
-async function callMistral(messages: Message[]) {
-  if (!MISTRAL_API_KEY) {
-    throw new Error("MISTRAL_API_KEY missing");
+async function callMistral(messages: Message[], apiKey?: string) {
+  const key = apiKey || MISTRAL_API_KEY;
+  if (!key) {
+    throw new Error("MISTRAL_API_KEY missing. Please provide it in settings.");
   }
 
   console.log("🧠 Trying Mistral API...");
   const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${MISTRAL_API_KEY}`,
+      "Authorization": `Bearer ${key}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
@@ -38,7 +41,8 @@ async function callMistral(messages: Message[]) {
   });
 
   if (!res.ok) {
-    throw new Error(`Mistral API failed: ${res.statusText}`);
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(`Mistral API failed: ${res.statusText} ${JSON.stringify(errorData)}`);
   }
 
   const data = await res.json();
@@ -52,11 +56,11 @@ async function callMistral(messages: Message[]) {
   return output;
 }
 
-async function callOllama({ messages, taskType, ollamaUrl }: { messages: Message[], taskType: string, ollamaUrl?: string }) {
-  let model = "llama3.2";
+async function callOllama({ messages, taskType, ollamaUrl, ollamaModel }: { messages: Message[], taskType: string, ollamaUrl?: string, ollamaModel?: string }) {
+  let model = ollamaModel || "llama3.2";
 
-  // Smart routing
-  if (taskType === "survey") {
+  // Smart routing if no model specified
+  if (!ollamaModel && taskType === "survey") {
     model = "mistral:instruct";
   }
 
@@ -74,7 +78,7 @@ async function callOllama({ messages, taskType, ollamaUrl }: { messages: Message
   });
 
   if (!res.ok) {
-    throw new Error(`Ollama failed: ${res.statusText}`);
+    throw new Error(`Ollama failed: ${res.statusText}. Ensure Ollama is running and model "${model}" is pulled.`);
   }
 
   const data = await res.json();
@@ -84,7 +88,7 @@ async function callOllama({ messages, taskType, ollamaUrl }: { messages: Message
   return output;
 }
 
-export async function callAI({ messages, taskType, mode = "auto", useCache = true, ollamaUrl, task }: CallAIParams) {
+export async function callAI({ messages, taskType, mode = "auto", useCache = true, ollamaUrl, ollamaModel, mistralApiKey, task }: CallAIParams) {
   // ✅ 1. CHECK DIRECT OVERRIDES (Demographics)
   if (taskType === "survey") {
     const direct = getDirectAnswer(task);
@@ -112,16 +116,16 @@ export async function callAI({ messages, taskType, mode = "auto", useCache = tru
   let output: string;
 
   if (mode === "ollama") {
-    output = await callOllama({ messages: enhancedMessages, taskType, ollamaUrl });
+    output = await callOllama({ messages: enhancedMessages, taskType, ollamaUrl, ollamaModel });
   } else if (mode === "mistral") {
-    output = await callMistral(enhancedMessages);
+    output = await callMistral(enhancedMessages, mistralApiKey);
   } else {
     // Auto / Failover mode
     try {
-      output = await callMistral(enhancedMessages);
+      output = await callMistral(enhancedMessages, mistralApiKey);
     } catch (err) {
       console.log("⚠️ Mistral failed → switching to Ollama...", err instanceof Error ? err.message : String(err));
-      output = await callOllama({ messages: enhancedMessages, taskType, ollamaUrl });
+      output = await callOllama({ messages: enhancedMessages, taskType, ollamaUrl, ollamaModel });
     }
   }
 

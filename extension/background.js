@@ -42,9 +42,13 @@ async function runAgentLoop(task, settings) {
       }
 
       // 🔴 Call backend
+      const serverUrl = settings.serverUrl || "http://localhost:3000";
+      const agentEndpoint = `${serverUrl.replace(/\/$/, "")}/agent`;
+      const captchaEndpoint = `${serverUrl.replace(/\/$/, "")}/solve-captcha`;
+
       let response;
       try {
-        response = await fetch("http://localhost:3000/agent", {
+        response = await fetch(agentEndpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -55,6 +59,8 @@ async function runAgentLoop(task, settings) {
             aiMode,
             speedMode,
             ollamaUrl,
+            ollamaModel: settings.ollamaModel,
+            mistralApiKey: settings.mistralApiKey,
             messages: [
               { role: "user", content: task },
               { role: "system", content: dom }
@@ -64,7 +70,7 @@ async function runAgentLoop(task, settings) {
       } catch (e) {
         // 👁️ FALLBACK TO VISION IF SERVER FAILS OR DOM IS WEIRD
         const image = await captureScreenshot();
-        response = await fetch("http://localhost:3000/agent", {
+        response = await fetch(agentEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -74,6 +80,8 @@ async function runAgentLoop(task, settings) {
             aiMode,
             speedMode,
             ollamaUrl,
+            ollamaModel: settings.ollamaModel,
+            mistralApiKey: settings.mistralApiKey,
             messages: [
               { role: "user", content: task }
             ]
@@ -97,7 +105,7 @@ async function runAgentLoop(task, settings) {
         
         if (captchaInfo && captchaInfo.siteKey) {
           try {
-            const solveRes = await fetch("http://localhost:3000/solve-captcha", {
+            const solveRes = await fetch(captchaEndpoint, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({

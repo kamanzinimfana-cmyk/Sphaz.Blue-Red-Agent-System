@@ -65,11 +65,37 @@
           <div class="setting-item">
             <label>AI Server URL</label>
             <input type="text" id="server-url" value="http://localhost:3000">
+            <p class="hint">Your Red Agent backend URL</p>
           </div>
-          
+
           <div class="setting-item">
-            <label>Ollama URL</label>
-            <input type="text" id="ollama-url" value="http://localhost:11434">
+            <label>AI Mode</label>
+            <select id="ai-mode" class="select-input">
+              <option value="auto">Auto (Failover)</option>
+              <option value="mistral">Mistral Cloud</option>
+              <option value="ollama">Local Ollama</option>
+            </select>
+          </div>
+
+          <div id="mistral-config" class="setting-item">
+            <label>Mistral API Key</label>
+            <input type="password" id="mistral-api-key" placeholder="Enter Mistral API Key">
+          </div>
+
+          <div id="ollama-config" class="setting-item">
+            <div class="setting-item">
+              <label>Ollama URL</label>
+              <input type="text" id="ollama-url" value="http://localhost:11434">
+            </div>
+            <div class="setting-item">
+              <label>Ollama Model</label>
+              <select id="ollama-model" class="select-input">
+                <option value="mistral:instruct">mistral:instruct (Fastest)</option>
+                <option value="mistral:latest">mistral:latest</option>
+                <option value="llava:latest">llava:latest (Vision)</option>
+                <option value="llama3.2">llama3.2</option>
+              </select>
+            </div>
           </div>
 
           <div class="setting-item row">
