@@ -11,6 +11,7 @@ import { isBlocked } from "./src/security/blockDetector.ts";
 
 import { detectCaptcha } from "./src/security/captchaDetector.ts";
 import { solveRecaptcha, getAllBalances } from "./src/security/captchaSolver.ts";
+import fetch from "node-fetch";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,15 +52,29 @@ async function startServer() {
 
   app.post("/agent", async (req, res) => {
     try {
-      const { agent, messages, image, ollamaUrl, ollamaModel, mistralApiKey, url, rotateProxy, aiMode, speedMode } = req.body;
+      const { agent, messages, image, ollamaUrl, ollamaModel, mistralApiKey, url, rotateProxy, aiMode, speedMode, useMemory, useProfile, userProfileData } = req.body;
 
       if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ success: false, error: "Invalid messages format" });
       }
 
       const task = messages?.[0]?.content || "";
-      const dom = messages?.[1]?.content || "";
+      let dom = messages?.[1]?.content || "";
       const useCache = speedMode !== "accurate";
+
+      // 🌐 Fetch DOM if URL is provided and DOM is placeholder
+      if (url && (dom === "Current Page DOM Context" || !dom)) {
+        console.log(`🌐 Fetching DOM from URL: ${url}`);
+        try {
+          const pageRes = await fetch(url);
+          if (pageRes.ok) {
+            dom = await pageRes.text();
+            console.log(`✅ DOM fetched (${dom.length} bytes)`);
+          }
+        } catch (fetchErr) {
+          console.error("❌ Failed to fetch DOM:", fetchErr);
+        }
+      }
 
       console.log(`🤖 Agent Request: ${agent} | Mode: ${aiMode} | Model: ${ollamaModel || 'default'}`);
 
@@ -98,21 +113,21 @@ async function startServer() {
       }
 
       if (image) {
-        const result = await runVisionAgent(messages[0].content, image, aiMode, mistralApiKey);
+        const result = await runVisionAgent(messages[0].content, image, aiMode, mistralApiKey, useMemory, useProfile, userProfileData);
         return res.json({ success: true, output: JSON.stringify(result) });
       }
 
       let result;
 
       if (agent === "red") {
-        result = await runRedAgent(task, dom, ollamaUrl, undefined, aiMode, useCache, mistralApiKey, ollamaModel);
+        result = await runRedAgent(task, dom, ollamaUrl, undefined, aiMode, useCache, mistralApiKey, ollamaModel, useMemory, useProfile, userProfileData);
         
         // 🧠 Store successful actions if they exist
         if (url && result.actions && result.actions.length > 0) {
-          learningEngine.store(url, result.actions, true);
+          learningEngine.store(url, result.actions, useMemory);
         }
       } else {
-        result = await runBlueAgent(task, dom, ollamaUrl, aiMode, useCache, mistralApiKey, ollamaModel);
+        result = await runBlueAgent(task, dom, ollamaUrl, aiMode, useCache, mistralApiKey, ollamaModel, useMemory, useProfile, userProfileData);
       }
 
       // Return exact format expected by extension

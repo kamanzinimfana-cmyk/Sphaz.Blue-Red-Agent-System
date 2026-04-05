@@ -10,13 +10,11 @@
   "background": {
     "service_worker": "background.js"
   },
-  "action": {
-    "default_popup": "popup.html"
-  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "js": ["content.js", "content/floating-ui.js", "content/detector.js", "content/grid.js"],
+      "css": ["content/floating-ui.css"]
     }
   ]
 }

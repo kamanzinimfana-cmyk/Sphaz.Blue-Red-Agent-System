@@ -38,6 +38,7 @@ export default function App() {
   
   // State
   const [isRunning, setIsRunning] = useState(false);
+  const [isAutoPilot, setIsAutoPilot] = useState(false);
   const [status, setStatus] = useState<'Idle' | 'Running' | 'Error' | 'Stopped'>('Idle');
   const [task, setTask] = useState('');
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -92,74 +93,91 @@ Income: $90k-$200k+`
     setLogs([]);
     addLog(`🚀 Starting task: ${task}`, "system");
 
-    try {
-      addLog("📡 Connecting to AI Server...", "system");
-      
-      const response = await fetch('/agent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agent: task.toLowerCase().includes('survey') ? 'red' : 'blue',
-          messages: [
-            { role: 'user', content: task },
-            { role: 'system', content: 'Current Page DOM Context' }
-          ],
-          ollamaUrl: settings.ollamaUrl,
-          aiMode: settings.aiMode,
-          speedMode: settings.speedMode
-        })
-      });
+    let currentTask = task;
+    let iteration = 0;
+    const maxIterations = 20;
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = `Server responded with ${response.status}`;
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.error || errorMessage;
-        } catch (e) {
-          errorMessage = errorText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
+    while (iteration < maxIterations) {
+      if (!isRunning && iteration > 0) break;
+      iteration++;
 
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || "Unknown server error");
-      }
-
-      const result = JSON.parse(data.output);
-      const agentType = task.toLowerCase().includes('survey') ? 'Red Agent' : 'Blue Agent';
-      
-      addLog(`${agentType === 'Red Agent' ? '🔴' : '🔵'} ${agentType} active.`, agentType === 'Red Agent' ? 'red' : 'blue');
-      addLog(`🤖 Decision: ${result.decision || 'Executing actions'}`, agentType === 'Red Agent' ? 'red' : 'blue');
-
-      if (result.actions) {
-        result.actions.forEach((action: any) => {
-          addLog(`👉 Action: ${action.type} on "${action.text || action.time + 'ms'}"`, 'system');
+      try {
+        addLog(isAutoPilot ? `📡 [Step ${iteration}] Connecting to AI Server...` : "📡 Connecting to AI Server...", "system");
+        
+        const response = await fetch('/agent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agent: currentTask.toLowerCase().includes('survey') ? 'red' : 'blue',
+            messages: [
+              { role: 'user', content: currentTask },
+              { role: 'system', content: 'Current Page DOM Context' }
+            ],
+            url: currentTask.match(/https?:\/\/[^\s]+/)?.[0],
+            ollamaUrl: settings.ollamaUrl,
+            aiMode: settings.aiMode,
+            speedMode: settings.speedMode
+          })
         });
-      }
 
-      if (task.toLowerCase().includes('survey') || task.toLowerCase().includes('form')) {
-        addLog("🔴 Red Agent: Survey logic engaged. Injecting memory profile...", "red");
-        await new Promise(r => setTimeout(r, 1000));
-        addLog("🔴 Red Agent: Smart click system fixing survey issues...", "red");
-      }
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = `Server responded with ${response.status}`;
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.error || errorMessage;
+          } catch (e) {
+            errorMessage = errorText || errorMessage;
+          }
+          throw new Error(errorMessage);
+        }
 
-      addLog("✅ Task processed by backend.", "success");
-      setStatus('Idle');
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      addLog(`❌ Server Error: ${msg}`, "error");
-      if (msg.includes("Unexpected end of JSON input")) {
-        addLog("💡 Tip: The server might have crashed or returned an empty response. Check backend logs.", "system");
-      } else {
-        addLog("💡 Tip: Ensure your local Ollama server is running and accessible if using local mode.", "system");
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || "Unknown server error");
+        }
+
+        const result = JSON.parse(data.output);
+        const agentType = currentTask.toLowerCase().includes('survey') ? 'Red Agent' : 'Blue Agent';
+        
+        addLog(`${agentType === 'Red Agent' ? '🔴' : '🔵'} ${agentType} active.`, agentType === 'Red Agent' ? 'red' : 'blue');
+        addLog(`🤖 Decision: ${result.decision || 'Executing actions'}`, agentType === 'Red Agent' ? 'red' : 'blue');
+
+        if (result.actions) {
+          result.actions.forEach((action: any) => {
+            addLog(`👉 Action: ${action.type} on "${action.text || action.value || action.time + 'ms'}"`, 'system');
+          });
+        }
+
+        if (currentTask.toLowerCase().includes('survey') || currentTask.toLowerCase().includes('form')) {
+          addLog("🔴 Red Agent: Survey logic engaged. Injecting memory profile...", "red");
+          await new Promise(r => setTimeout(r, 800));
+          addLog("🔴 Red Agent: Smart click system fixing survey issues...", "red");
+        }
+
+        if (!isAutoPilot) break;
+        
+        // If auto-pilot, wait and continue
+        addLog("⏳ Auto-Pilot: Waiting for page transition...", "system");
+        await new Promise(r => setTimeout(r, 2000));
+
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        addLog(`❌ Server Error: ${msg}`, "error");
+        if (msg.includes("Unexpected end of JSON input")) {
+          addLog("💡 Tip: The server might have crashed or returned an empty response. Check backend logs.", "system");
+        } else {
+          addLog("💡 Tip: Ensure your local Ollama server is running and accessible if using local mode.", "system");
+        }
+        setStatus('Error');
+        break;
       }
-      setStatus('Error');
-    } finally {
-      setIsRunning(false);
     }
+
+    addLog("✅ Task processed by backend.", "success");
+    setStatus('Idle');
+    setIsRunning(false);
   };
 
   const handleStop = () => {
@@ -288,6 +306,20 @@ Income: $90k-$200k+`
                           placeholder="Describe the task for the agents..."
                           className="w-full h-32 bg-slate-900/50 border border-slate-800 rounded-2xl p-5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all resize-none placeholder:text-slate-600 shadow-inner"
                         />
+                        <div className="absolute bottom-4 left-4 flex items-center gap-2">
+                          <button 
+                            onClick={() => setIsAutoPilot(!isAutoPilot)}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border",
+                              isAutoPilot 
+                                ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.2)]" 
+                                : "bg-slate-800/50 border-slate-700 text-slate-500 hover:border-slate-600"
+                            )}
+                          >
+                            <Zap className={cn("w-3 h-3", isAutoPilot && "animate-pulse")} />
+                            {isAutoPilot ? "AUTO-PILOT ON" : "AUTO-PILOT OFF"}
+                          </button>
+                        </div>
                         <div className="absolute bottom-4 right-4 flex gap-2">
                           <button 
                             onClick={handleRun}

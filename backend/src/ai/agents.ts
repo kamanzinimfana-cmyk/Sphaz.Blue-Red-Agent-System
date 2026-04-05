@@ -18,7 +18,7 @@ export function selectModel(task: string) {
 }
 
 // 🔴 RED AGENT (ACTIONS)
-export async function runRedAgent(task: string, dom: string, ollamaUrl?: string, imageBase64?: string, mode: "auto" | "mistral" | "ollama" = "auto", useCache: boolean = true, mistralApiKey?: string, ollamaModel?: string) {
+export async function runRedAgent(task: string, dom: string, ollamaUrl?: string, imageBase64?: string, mode: "auto" | "mistral" | "ollama" = "auto", useCache: boolean = true, mistralApiKey?: string, ollamaModel?: string, useMemory: boolean = true, useProfile: boolean = true, userProfileData?: string) {
   const trimmedDOM = dom.substring(0, 2000); // Token trimming for speed
   
   if (trimmedDOM.length < 50 && !imageBase64) {
@@ -34,7 +34,11 @@ export async function runRedAgent(task: string, dom: string, ollamaUrl?: string,
     visionContext = `\nVISION_DATA:${processedVision}\nUse this to detect buttons not visible in DOM, identify sliders, stars, grids, and understand layout like a human. If DOM fails, rely on vision.`;
   }
 
-  let systemPrompt = `User Profile: ${JSON.stringify(USER_PROFILE)}\n\n`;
+  let systemPrompt = "";
+  if (useProfile) {
+    const profile = userProfileData || JSON.stringify(USER_PROFILE);
+    systemPrompt += `User Profile: ${profile}\n\n`;
+  }
   
   if (taskType === "survey") {
     systemPrompt += enhanceSurveyPrompt(trimmedDOM);
@@ -66,7 +70,7 @@ export async function runRedAgent(task: string, dom: string, ollamaUrl?: string,
 }
 
 // 👁️ VISION AGENT (FALLBACK)
-export async function runVisionAgent(task: string, imageBase64: string, mode: "auto" | "mistral" | "ollama" = "auto", mistralApiKey?: string) {
+export async function runVisionAgent(task: string, imageBase64: string, mode: "auto" | "mistral" | "ollama" = "auto", mistralApiKey?: string, useMemory: boolean = true, useProfile: boolean = true, userProfileData?: string) {
   console.log("Vision Agent processing task:", task);
   
   const buffer = Buffer.from(imageBase64.split(",")[1] || imageBase64, 'base64');
@@ -83,7 +87,7 @@ export async function runVisionAgent(task: string, imageBase64: string, mode: "a
 }
 
 // 🔵 BLUE AGENT (NAVIGATION)
-export async function runBlueAgent(task: string, dom: string, ollamaUrl?: string, mode: "auto" | "mistral" | "ollama" = "auto", useCache: boolean = true, mistralApiKey?: string, ollamaModel?: string) {
+export async function runBlueAgent(task: string, dom: string, ollamaUrl?: string, mode: "auto" | "mistral" | "ollama" = "auto", useCache: boolean = true, mistralApiKey?: string, ollamaModel?: string, useMemory: boolean = true, useProfile: boolean = true, userProfileData?: string) {
   const trimmedDOM = dom.substring(0, 2000);
   const taskType = detectTaskType(task);
 

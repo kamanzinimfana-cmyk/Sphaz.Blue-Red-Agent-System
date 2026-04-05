@@ -176,12 +176,29 @@ async function executeActions(actions) {
     await sleep(random(500, 1000));
 
     if (action.type === "click") {
-      const el = findElementByText(action.text);
-      if (el) {
-        await humanClick(el);
+      if (action.x !== undefined && action.y !== undefined) {
+        // Precise coordinate click
+        const el = document.elementFromPoint(action.x, action.y);
+        if (el) {
+          await humanClick(el);
+        } else {
+          // Fallback if no element at point
+          await simulateMouseMove(action.x, action.y);
+          await sleep(random(100, 300));
+          document.dispatchEvent(new MouseEvent('click', {
+            bubbles: true,
+            clientX: action.x,
+            clientY: action.y
+          }));
+        }
       } else {
-        // Fallback to smartClick if humanClick fails to find element
-        smartClick(action.text);
+        const el = findElementByText(action.text);
+        if (el) {
+          await humanClick(el);
+        } else {
+          // Fallback to smartClick if humanClick fails to find element
+          smartClick(action.text);
+        }
       }
     }
 
